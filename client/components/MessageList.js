@@ -1,55 +1,59 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import MessageInput from './MessageInput';
 import MessageItem from './MessageItem';
-
-const UserId = ['roy', 'jay'];
-const getRandomUserId = () => UserId[Math.round(Math.random())];
-
-const messages = Array(50)
-  .fill(null)
-  .map((_, i) => ({
-    id: i + 1,
-    userId: getRandomUserId(),
-    timeStamp: 1234567890123 + i * 1000 * 60,
-    text: `${1 + i} mock text`,
-  }))
-  .reverse();
+import fetcher from '../fetcher.js';
 
 const MessageList = function () {
-  const [mesList, setMessages] = useState(messages);
+  const {
+    query: { userId = '' },
+  } = useRouter();
+  const [mesList, setMessages] = useState([]);
   const [editingId, setEditingId] = useState(null);
 
-  const onCreate = text => {
-    const id = mesList.length + 1;
-    const newMessage = {
-      id,
-      userId: getRandomUserId(),
-      timeStamp: 1234567890123 + id * 1000 * 60,
-      text,
-    };
+  const onCreate = async text => {
+    const newMessage = await fetcher('post', '/messages', { text, userId });
 
     setMessages([newMessage, ...mesList]);
   };
 
-  const onUpdate = (text, id) => {
+  const onUpdate = async (text, id) => {
+    const message = await fetcher('put', `/messages/${id}`, {
+      userId,
+      text,
+    });
+
     setMessages(mesList => {
       const targetIndext = mesList.findIndex(message => message.id === id);
       if (targetIndext < 0) return mesList;
-      const newMessage = [...mesList];
-      newMessage.splice(targetIndext, 1, {
-        ...mesList[targetIndext],
-        text,
-      });
-      return newMessage;
+      const messages = [...mesList];
+      messages.splice(targetIndext, 1, message);
+      return messages;
     });
+
     doneUpdate();
   };
 
   const doneUpdate = () => setEditingId(null);
 
-  const onDelete = id => {
-    setMessages(mesList => mesList.filter(message => message.id !== id));
+  const onDelete = async id => {
+    const receivedId = await fetcher('delete', `/messages/${id}`, {
+      params: { userId },
+    });
+
+    setMessages(mesList =>
+      mesList.filter(message => message.id !== receivedId + '')
+    );
   };
+
+  const getMessages = async () => {
+    const messages = await fetcher('get', './messages');
+    setMessages(messages);
+  };
+
+  useEffect(() => {
+    getMessages();
+  }, []);
 
   return (
     <>
@@ -63,6 +67,7 @@ const MessageList = function () {
             isEditing={editingId === x.id}
             onUpdate={onUpdate}
             onDelete={onDelete}
+            myId={userId}
           />
         ))}
       </ul>

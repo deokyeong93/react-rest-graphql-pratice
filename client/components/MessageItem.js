@@ -30,7 +30,6 @@ const MessageItem = function ({
       ) : (
         ` => ${text}`
       )}
-
       <div className={'messages_buttons'}>
         <button onClick={() => startEdit(id)}>수정</button>
         <button onClick={() => onDelete(id)}>삭제</button>
